@@ -5,6 +5,13 @@
 #include <vector>
 #include "geometry.h"
 
+
+struct Light {
+    Light(const Vec3f &p, const float &i) : position(p), intensity(i) {}
+    Vec3f position;
+    float intensity;
+};
+
 struct Material {
     Material(const Vec3f &color) : diffuse_color(color) {}
     Material() : diffuse_color() {}
@@ -46,17 +53,23 @@ bool scene_intersect(const Vec3f &orig, const Vec3f &dir, const std::vector<Sphe
     return spheres_dist<1000;
 }
 
-Vec3f cast_ray(const Vec3f &orig, const Vec3f &dir, const std::vector<Sphere> &spheres) {
+Vec3f cast_ray(const Vec3f &orig, const Vec3f &dir, const std::vector<Sphere> &spheres, const std::vector<Light> &lights) {
     Vec3f point, N;
     Material material;
 
     if (!scene_intersect(orig, dir, spheres, point, N, material)) {
-        return Vec3f(0.1, 0.7, 0.9); // background color
+        return Vec3f(0.1, 0.4, 0.5); // background color
     }
-    return material.diffuse_color;
+
+    float diffuse_light_intensity = 0;
+    for (size_t i=0; i<lights.size(); i++) {
+        Vec3f light_dir      = (lights[i].position - point).normalize();
+        diffuse_light_intensity  += lights[i].intensity * std::max(0.f, light_dir*N);
+    }
+    return material.diffuse_color * diffuse_light_intensity;
 }
 
-void render(const std::vector<Sphere> &spheres){
+void render(const std::vector<Sphere> &spheres, const std::vector<Light> &lights){
     
     const int HEIGHT = 768;
     const int WIDTH = 1024;
@@ -67,12 +80,12 @@ void render(const std::vector<Sphere> &spheres){
             float x =  (2*(i + 0.5)/(float)WIDTH  - 1)*tan(FOV/2.)*WIDTH/(float)HEIGHT;
             float y = -(2*(j + 0.5)/(float)HEIGHT - 1)*tan(FOV/2.);
             Vec3f dir = Vec3f(x, y, -1).normalize();
-            framebuffer[i+j*WIDTH] = cast_ray(Vec3f(0,0,0), dir, spheres);
+            framebuffer[i+j*WIDTH] = cast_ray(Vec3f(0,0,0), dir, spheres, lights);
         }
     }
 
     std::ofstream ofs;
-    ofs.open("./spheres.ppm");
+    ofs.open("./sphereswlight.ppm");
     ofs << "P6\n" << WIDTH << " " << HEIGHT << "\n255\n";
     for (size_t i = 0; i < HEIGHT*WIDTH; ++i) {
         for (size_t j = 0; j<3; j++) {
@@ -94,6 +107,9 @@ int main(){
     spheres.push_back(Sphere(Vec3f( 1.5, -0.5, -18), 3, red_rubber));
     spheres.push_back(Sphere(Vec3f( 7,    5,   -18), 4,      ivory));
 
-    render(spheres);
+    std::vector<Light>  lights;
+    lights.push_back(Light(Vec3f(-20, 20,  20), 1.5));
+
+    render(spheres, lights);
     return 0;
 }

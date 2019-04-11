@@ -32,15 +32,31 @@ struct Sphere {
     };
 
 
-Vec3f cast_ray(const Vec3f &orig, const Vec3f &dir, const Sphere &sphere) {
-    float sphere_dist = std::numeric_limits<float>::max();
-    if (!sphere.ray_intersect(orig, dir, sphere_dist)) {
-        return Vec3f(0.2, 0.7, 0.8); // background color
+bool scene_intersect(const Vec3f &orig, const Vec3f &dir, const std::vector<Sphere> &spheres, Vec3f &hit, Vec3f &N, Material &material) {
+    float spheres_dist = std::numeric_limits<float>::max();
+    for (size_t i=0; i < spheres.size(); i++) {
+        float dist_i;
+        if (spheres[i].ray_intersect(orig, dir, dist_i) && dist_i < spheres_dist) {
+            spheres_dist = dist_i;
+            hit = orig + dir*dist_i;
+            N = (hit - spheres[i].center).normalize();
+            material = spheres[i].material;
+        }
     }
-    return Vec3f(0.4, 0.4, 0.3);
+    return spheres_dist<1000;
 }
 
-void render(const Sphere &sphere){
+Vec3f cast_ray(const Vec3f &orig, const Vec3f &dir, const std::vector<Sphere> &spheres) {
+    Vec3f point, N;
+    Material material;
+
+    if (!scene_intersect(orig, dir, spheres, point, N, material)) {
+        return Vec3f(0.1, 0.7, 0.9); // background color
+    }
+    return material.diffuse_color;
+}
+
+void render(const std::vector<Sphere> &spheres){
     
     const int HEIGHT = 768;
     const int WIDTH = 1024;
@@ -51,12 +67,12 @@ void render(const Sphere &sphere){
             float x =  (2*(i + 0.5)/(float)WIDTH  - 1)*tan(FOV/2.)*WIDTH/(float)HEIGHT;
             float y = -(2*(j + 0.5)/(float)HEIGHT - 1)*tan(FOV/2.);
             Vec3f dir = Vec3f(x, y, -1).normalize();
-            framebuffer[i+j*WIDTH] = cast_ray(Vec3f(0,0,0), dir, sphere);
+            framebuffer[i+j*WIDTH] = cast_ray(Vec3f(0,0,0), dir, spheres);
         }
     }
 
     std::ofstream ofs;
-    ofs.open("./out.ppm");
+    ofs.open("./spheres.ppm");
     ofs << "P6\n" << WIDTH << " " << HEIGHT << "\n255\n";
     for (size_t i = 0; i < HEIGHT*WIDTH; ++i) {
         for (size_t j = 0; j<3; j++) {
@@ -69,7 +85,15 @@ void render(const Sphere &sphere){
 
 
 int main(){
-    Sphere sphere(Vec3f(-3, 0, -16), 2);
-    render(sphere);
+    Material      ivory(Vec3f(0.3, 0.1, 0.3));
+    Material red_rubber(Vec3f(0.4, 0.1, 0.2));
+
+    std::vector<Sphere> spheres;
+    spheres.push_back(Sphere(Vec3f(-3,    0,   -16), 2,      ivory));
+    spheres.push_back(Sphere(Vec3f(-1.0, -1.5, -12), 2, red_rubber));
+    spheres.push_back(Sphere(Vec3f( 1.5, -0.5, -18), 3, red_rubber));
+    spheres.push_back(Sphere(Vec3f( 7,    5,   -18), 4,      ivory));
+
+    render(spheres);
     return 0;
 }

@@ -18,3 +18,6 @@ Image with specular lighting:
 Image with shadows:
 
 <img width="965" alt="sphereswshadows" src="https://user-images.githubusercontent.com/33553170/55930229-6072ef80-5bee-11e9-92ea-e941dc191ba7.png">
+
+
+Followed https://github.com/ssloy/tinyraytracer for reference.
